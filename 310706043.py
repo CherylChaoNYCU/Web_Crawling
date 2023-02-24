@@ -306,17 +306,21 @@ if __name__ == '__main__':
             with open('all_article.jsonl','r') as f:
                 data = json.load(f)
 
-            srt_d = argv[2]
-            end_d = argv[3]
+            srt_d = int(argv[2])
+            end_d = int(argv[3])
             srtidx = endidx = 0
-            for i in range(len(data)):
-                if((data[i]['date: '] == srt_d) and srtidx == 0):
+            i = 0
+             
+           
+            while(i <  len(data)):
+                cur_date = int(data[i]['date: '])
+                if((cur_date == srt_d) and srtidx == 0):
                     srtidx = i
-                if(data[i]['date: '] == end_d):
-                    while(data[i]['date: '] == end_d):
-                        i+=1
+                elif(cur_date > end_d): #no end date found
                     endidx = i
                     break
+                i+=1
+
             for idx in range(srtidx,endidx):
 
                     url = data[idx]['url: ']
@@ -349,12 +353,11 @@ if __name__ == '__main__':
                 cur_date = int(data[i]['date: '])
                 if((cur_date == srt_d) and srtidx == 0):
                     srtidx = i
-                    
-                elif(cur_date == end_d):
-                    while(int(data[i]['date: ']) == end_d):
-                        i+=1
-                    endidx = i
-                    break
+                # elif(cur_date == end_d):
+                #     while(int(data[i]['date: ']) == end_d):
+                #         i+=1
+                #     endidx = i
+                #     break
                 elif(cur_date > end_d): #no end date found
                     endidx = i
                     break
