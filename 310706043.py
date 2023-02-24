@@ -16,6 +16,9 @@ popular_article_list = []
 response__likelist = []
 response__boolist = []
 push_boo_rank = []
+img_urls = []
+all_img = []
+
 #article = {}
 
 
@@ -128,6 +131,7 @@ class Ptt_Crawler:
                             'user_id':user,
                         }
                     response__boolist.append(r_dict_boo)
+
         #print(response__likelist)
         #print(response__boolist)
     
@@ -204,6 +208,49 @@ class Ptt_Crawler:
         }
 
         push_boo_rank.append(final)
+    
+    def popular(self,art_url,num):
+        
+        
+        res  = self.session.get(art_url, verify=False)
+        soup = BeautifulSoup(res.text, 'html5lib')
+        
+        allow = ['jpg','jpeg','png','gif']
+        links = soup.find_all('a')
+
+        for l in links:
+            href = l['href']
+            #fetch the data type(jpg...)
+            sub = href.split('.')[-1]
+
+            if sub.lower() in allow:
+                 print('download:',href)
+            
+                 img_urls.append(href)
+        
+        comments = soup.find_all("div", class_="push")
+        
+        # for c in comments:
+        #     push_tag = c.find(
+        #         "span", class_="push-tag").string  
+        #     print(f'cur push tag:{push_tag}')
+        #     if(push_tag == '推' or push_tag == '噓'):
+        #         img = c.find("span", class_="push-content").a['href'].strip
+        #         img_urls.append(img)
+    
+    
+    def popular_json(self):
+
+        print(img_urls)
+        article = {
+            "number_of_popular_articles": num,
+             "image_urls": img_urls
+        }
+        
+        all_img.append(article)
+
+
+
         
 
 
@@ -254,34 +301,71 @@ if __name__ == '__main__':
     
     elif len(argv) == 4: #for push srt, end
         #load the json file we just crawled
-        with open('all_article.jsonl','r') as f:
-            data = json.load(f)
+        print(argv[1])
+        if(argv[1] == 'push'):
+            with open('all_article.jsonl','r') as f:
+                data = json.load(f)
 
-        srt_d = argv[2]
-        end_d = argv[3]
-        srtidx = endidx = 0
-        for i in range(len(data)):
-            if((data[i]['date: '] == srt_d) and srtidx == 0):
-                srtidx = i
-            if(data[i]['date: '] == end_d):
-                while(data[i]['date: '] == end_d):
-                    i+=1
-                endidx = i
-                break
-        for idx in range(srtidx,endidx):
+            srt_d = argv[2]
+            end_d = argv[3]
+            srtidx = endidx = 0
+            for i in range(len(data)):
+                if((data[i]['date: '] == srt_d) and srtidx == 0):
+                    srtidx = i
+                if(data[i]['date: '] == end_d):
+                    while(data[i]['date: '] == end_d):
+                        i+=1
+                    endidx = i
+                    break
+            for idx in range(srtidx,endidx):
 
-                url = data[idx]['url: ']
-                print('===searching...===')
-                print('===current url:{}==='.format(url))
-                print('===current date:{}==='.format(data[idx]['date: ']))
-                print('\n')
-                crawler.pushes(url) #crawl all like and boos
+                    url = data[idx]['url: ']
+                    print('===searching...===')
+                    print('===current url:{}==='.format(url))
+                    print('===current date:{}==='.format(data[idx]['date: ']))
+                    print('\n')
+                    crawler.pushes(url) #crawl all like and boos
 
 
-        crawler.count_push_boo() #count the first 10 and output it
+            crawler.count_push_boo() #count the first 10 and output it
 
-        with open('push_{}_{}.json'.format(srt_d,end_d),'w',encoding='utf-8') as f:
-             json.dump(push_boo_rank,f,indent=1,ensure_ascii=False)
+            with open('push_{}_{}.json'.format(srt_d,end_d),'w',encoding='utf-8') as f:
+                json.dump(push_boo_rank,f,indent=1,ensure_ascii=False)
+        
+        elif(argv[1] == 'popular'):
+
+            
+            with open('all_popular.jsonl','r') as f:
+                data = json.load(f)
+            
+            srt_d = argv[2]
+            end_d = argv[3]
+            srtidx = endidx = 0
+
+            for i in range(len(data)):
+                if((data[i]['date: '] == srt_d) and srtidx == 0):
+                    srtidx = i
+                if(data[i]['date: '] == end_d):
+                    while(data[i]['date: '] == end_d):
+                        i+=1
+                    endidx = i
+                    break
+            #number of popular articles:
+            num = (endidx - srtidx)
+            
+            for idx in range(srtidx,endidx):
+
+                    url = data[idx]['url: ']
+                    print('===searching...===')
+                    print('===current url:{}==='.format(url))
+                    print('===current date:{}==='.format(data[idx]['date: ']))
+                    print('\n')
+                    crawler.popular(url,num) 
+            crawler.popular_json()
+            
+            with open('popular_{}_{}.json'.format(srt_d,end_d),'w',encoding='utf-8') as f:
+                json.dump(all_img,f,indent=1,ensure_ascii=False)
+            
 
 
 
