@@ -1,7 +1,8 @@
-# import json
+import json
 
-# with open('all_article.jsonl','r') as f:
-#     data = json.load(f)
+with open('all_article.jsonl','r') as f:
+    data = json.load(f)
+print(len(data))
 
 # for i in range(20):
 #     print(data[i])

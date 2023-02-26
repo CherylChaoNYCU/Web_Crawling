@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 import json
 from sys import argv
 import time
@@ -18,6 +19,9 @@ response__boolist = []
 push_boo_rank = []
 img_urls = []
 all_img = []
+keyword_cont = []
+img_url_key = []
+all_img_key =  []
 
 #article = {}
 
@@ -249,20 +253,50 @@ class Ptt_Crawler:
         
         all_img.append(article)
 
+    def keywords(self,url,key):
+        
+        res  = self.session.get(url, verify=False)
+        soup = BeautifulSoup(res.text, 'html5lib')
 
+        all_words1 = ''.join(soup.select(".article-meta-value")[0].contents[0].split(" ")[0])
+        all_words2  = ''.join(soup.select(".article-meta-value")[2].contents[0])
+        all_words3  = ''.join(soup.select(".article-meta-value")[3].contents[0])
+        
+        content = ""
+        
+        for tag in soup.select("#main-content")[0]:
+                if type(tag) is NavigableString and tag !='\n':
+                    content += tag
+        #print('the content\n')
+        #print(content)
+        all_words4 = ''.join(content)
+        total_words = all_words1+all_words2+all_words3+all_words4
+        
+        #print('the words here\n')
+        #print(total_words)
+
+        allow = ['jpg','jpeg','png','gif']
+        links = soup.find_all('a')
+        
+        if (key in total_words):
+            for l in links:
+                 
+                 href = l['href']
+                #fetch the data type(jpg...)
+                 sub = href.split('.')[-1]
+                 
+
+                 if sub.lower()in allow:
+                      print('download:',href)
+                      img_url_key.append(href)
+                      
+            
+             
+        
 
         
 
-
-
-        
-        
-
-
-
-
-                    
-
+ 
                     
 
 
@@ -361,9 +395,7 @@ if __name__ == '__main__':
                 elif(cur_date > end_d): #no end date found
                     endidx = i
                     break
-                i+=1
-
-           
+                i+=1     
   
 
             #number of popular articles:
@@ -382,6 +414,55 @@ if __name__ == '__main__':
             
             with open('popular_{}_{}.json'.format(srt_d,end_d),'w',encoding='utf-8') as f:
                 json.dump(all_img,f,indent=1,ensure_ascii=False)
+        
+    elif len(argv) == 5: #for keyword
+            
+            key = argv[2]
+            print('hi')
+            
+            with open('all_article.jsonl','r') as f:
+                data = json.load(f)
+
+            srt_d = int(argv[3])
+            end_d = int(argv[4])
+            srtidx = endidx = 0
+            i = 0
+             
+           
+            while(i <  len(data)):
+                cur_date = int(data[i]['date: '])
+                if((cur_date == srt_d) and srtidx == 0):
+                    srtidx = i
+                elif(cur_date > end_d): #no end date found
+                    endidx = i
+                    break
+                i+=1
+
+            for idx in range(srtidx,endidx):
+
+                    url = data[idx]['url: ']
+                    print('===searching...===')
+                    print('===current url:{}==='.format(url))
+                    print('===current date:{}==='.format(data[idx]['date: ']))
+                    print('\n')
+                    crawler.keywords(url,key)
+            
+            article = {
+            
+             "image_urls": img_url_key
+            }
+            #print(img_url_key)
+
+            all_img_key.append(article)
+            
+            with open('keyword_{}_{}_{}.json'.format(key,srt_d,end_d),'w',encoding='utf-8') as f:
+                json.dump(all_img_key,f,indent=1,ensure_ascii=False)
+
+
+
+
+
+
             
 
 
