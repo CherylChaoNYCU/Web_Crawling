@@ -44,6 +44,53 @@ class Ptt_Crawler:
                            data=self.beauty_data)
         self.like = 0
         self.boo = 0
+    
+    #find the first page of 2022 01/01
+    def find_srt_page(self,url):
+        
+        cur_url = url
+        srt_url = url
+        total_page = 0
+        while(1):
+            print(f'cur url all page{cur_url}')
+            
+
+            res  = self.session.get(cur_url, verify=False)
+            soup = BeautifulSoup(res.text, 'html5lib')
+            arts = soup.find_all('div', class_='r-ent')
+        
+            cur_time = ''
+            flag = 0
+           
+            for art in arts:
+                
+                    
+                    title = art.find('div', class_='title').getText().strip()
+                    if not title.startswith('('): #reminders: some articles might be deleted! usually start with '('
+                                link = 'https://www.ptt.cc' + \
+                                        art.find('div', class_='title').a['href'].strip()
+                                
+                                print(f'cur url small page{link}')
+                                res  = self.session.get(link, verify=False)
+                                soup2 = BeautifulSoup(res.text, 'html5lib')
+                                cur_time  = ''.join(soup2.select(".article-meta-value")[3].contents[0])
+                                print(f'cur url small page time{cur_time}')
+                                if(cur_time == 'Sat Jan  1 02:09:40 2022'):
+                                    print(f'page found!{link}')
+                                    print(f'returning {cur_url}')
+                                    return cur_url
+                                    
+                               # elif(cur_time == 'Sat Dec 31 20:37:13 2022'):
+                                   # return srt_url,total_page #link found
+                                    
+
+            cur_url = 'https://www.ptt.cc' + \
+                soup.select_one(
+                    '#action-bar-container > div > div.btn-group.btn-group-paging > a:nth-child(3)')['href']
+            
+            
+
+
 
     #for crawling
     def get_articles(self,resp,pg):
@@ -51,6 +98,7 @@ class Ptt_Crawler:
         res  = self.session.get(resp, verify=False)
         soup = BeautifulSoup(res.text, 'html5lib')
         arts = soup.find_all('div', class_='r-ent')
+        cur_time = ''
 
         for art in arts:
             pop = art.find('div',class_='nrec').getText().strip()
@@ -60,8 +108,17 @@ class Ptt_Crawler:
             if not title.startswith('('): #reminders: some articles might be deleted! usually start with '('
                         link = 'https://www.ptt.cc' + \
                                 art.find('div', class_='title').a['href'].strip()
+                        res  = self.session.get(link, verify=False)
+                        #find the article date
+                        soup2 = BeautifulSoup(res.text, 'html5lib')
+                        try:
+                            cur_time  = ''.join(soup2.select(".article-meta-value")[3].contents[0])
+                        except IndexError:
+                            print(f'Deleted article{link}, skip and find next')
+                            continue
             
             date = art.find('div', class_='date').getText().strip()
+
             #converting m/d to 0m0d
             date = date.split('/')
             for i in range(2):
@@ -83,17 +140,10 @@ class Ptt_Crawler:
                     if(pop == '爆'):
                         popular_article_list.append(article)
 
-                elif(pg == 2): #last page
-                    if(not date=='0101'):
-                        article = {
-                            'date: ': date,
-                            'title: ': title,
-                            'url: ': link
-                        }
-                        article_list.append(article)
-                    if(pop == '爆'):
-                        popular_article_list.append(article)
                 else:
+                    print(f'cur time:{cur_time}')
+                    if(cur_time == 'Sun Jan  1 00:26:06 2023'):
+                        return 'end'
                     article = {
                         'date: ': date,
                         'title: ': title,
@@ -312,20 +362,23 @@ if __name__ == '__main__':
     crawler = Ptt_Crawler()
 
     if len(argv) == 2: #for crawl
-        url = 'https://www.ptt.cc/bbs/Beauty/index3647.html'
-        for now_pg in range(309): #should be 309 for homework
-            #first page 20221/1 url
-            print(f'crawing {url}')
-            
-            if(now_pg == 0):
-                    url = crawler.get_articles(url,1)
-            elif(now_pg == 308):
-                    url = crawler.get_articles(url,2)
-            else:
-                    url = crawler.get_articles(url,0)
+        url = 'https://www.ptt.cc/bbs/Beauty/index3636.html'
+        srt_url = crawler.find_srt_page(url)
+        cur_pg = 0
+        print(f'the url for first page {srt_url}')
 
-            print('===current page: {} / 308 ==='.format(now_pg))
+        while(srt_url!='end'): 
+            #first page 20221/1 url
+            print(f'crawing {srt_url}')
+            
+            if(cur_pg == 0):
+                    srt_url= crawler.get_articles(srt_url,1)
+            else:
+                    srt_url = crawler.get_articles(srt_url,0)
+
+            print('===current page: {}'.format(cur_pg))
             time.sleep(0.5)
+            cur_pg+=1
     
             with open('all_article.jsonl','w',encoding='utf-8') as f:
                 json.dump(article_list,f,indent=2,sort_keys=True,ensure_ascii=False)
@@ -367,7 +420,7 @@ if __name__ == '__main__':
 
             crawler.count_push_boo() #count the first 10 and output it
 
-            with open('push_{}_{}.json'.format(srt_d,end_d),'w',encoding='utf-8') as f:
+            with open('push_{}_{}.json'.format(argv[2],argv[3]),'w',encoding='utf-8') as f:
                 json.dump(push_boo_rank,f,indent=1,ensure_ascii=False)
         
         elif(argv[1] == 'popular'):
@@ -385,17 +438,19 @@ if __name__ == '__main__':
            
             while(i <  len(data)):
                 cur_date = int(data[i]['date: '])
+                print('cur_date{}'.format(cur_date))
                 if((cur_date == srt_d) and srtidx == 0):
                     srtidx = i
-                # elif(cur_date == end_d):
-                #     while(int(data[i]['date: ']) == end_d):
-                #         i+=1
-                #     endidx = i
-                #     break
+                
+             
                 elif(cur_date > end_d): #no end date found
                     endidx = i
                     break
-                i+=1     
+                i+=1
+            
+            if(i == len(data)):
+                endidx = i-1
+            print('endidx{} srtidx{}'.format(srtidx,endidx))     
   
 
             #number of popular articles:
@@ -412,13 +467,13 @@ if __name__ == '__main__':
                     crawler.popular(url,num) 
             crawler.popular_json()
             
-            with open('popular_{}_{}.json'.format(srt_d,end_d),'w',encoding='utf-8') as f:
+            with open('popular_{}_{}.json'.format(argv[2],argv[3]),'w',encoding='utf-8') as f:
                 json.dump(all_img,f,indent=1,ensure_ascii=False)
         
     elif len(argv) == 5: #for keyword
             
             key = argv[2]
-            print('hi')
+            #print('hi')
             
             with open('all_article.jsonl','r') as f:
                 data = json.load(f)
@@ -455,7 +510,7 @@ if __name__ == '__main__':
 
             all_img_key.append(article)
             
-            with open('keyword_{}_{}_{}.json'.format(key,srt_d,end_d),'w',encoding='utf-8') as f:
+            with open('keyword_{}_{}_{}.json'.format(key,argv[2],argv[3]),'w',encoding='utf-8') as f:
                 json.dump(all_img_key,f,indent=1,ensure_ascii=False)
 
 
